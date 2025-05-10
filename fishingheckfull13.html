@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fishing Heck - UI Overhaul</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background-color: #333; color: white; }
+        canvas { display: block; }
+
+        #topBar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 8px;
+            background-color: rgba(0,0,0,0.6);
+            z-index: 15;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #healthContainer {
+            font-size: 14px; /* Health text can remain slightly larger or match UI text */
+            width: 250px;
+            max-width: 90%;
+            display: flex;
+            align-items: center;
+            color: white;
+        }
+        #healthContainer > span {
+            margin-right: 8px;
+            white-space: nowrap;
+        }
+        #healthBarOuter {
+            flex-grow: 1;
+            height: 18px;
+            background-color: #555;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        #healthBarInner {
+            width: 100%; height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s ease-out, background-color 0.3s ease-out;
+        }
+
+        #ui-container {
+            position: absolute;
+            top: 45px; /* Adjusted for topBar height + margin */
+            left: 10px;
+            padding: 8px;
+            background-color: rgba(0,0,0,0.7);
+            border-radius: 5px;
+            z-index: 10;
+            min-width: 200px; /* Reduced min-width */
+            box-sizing: border-box;
+        }
+        #gameTitle {
+            margin-top: 0;
+            margin-bottom: 10px; /* Reduced margin */
+            text-align: center;
+            font-size: 20px; /* Reduced font size */
+            color: #FFEB3B;
+            text-shadow: 1px 1px 2px black;
+        }
+        .game-button {
+            padding: 7px 10px; /* Reduced padding */
+            font-size: 13px; /* Reduced font size */
+            cursor: pointer;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            display: block;
+            margin-bottom: 6px; /* Reduced margin */
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #rotationControls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px; /* Reduced margin */
+        }
+        .rotate-button { background-color: #607D8B; flex-grow: 1; }
+        .rotate-button:first-child { margin-right: 3px; } /* Reduced spacing */
+        .rotate-button:last-child { margin-left: 3px; } /* Reduced spacing */
+        .rotate-button:hover { background-color: #78909C; }
+        .rotate-button:disabled { background-color: #aaa; cursor: not-allowed; }
+
+        #fishInfo, #scoreBoard, #fishCaughtDisplay {
+            margin-top: 8px; /* Reduced margin */
+            font-size: 13px; /* Reduced font size */
+        }
+        #fishCaughtDisplay { margin-top: 4px; /* Tighter with score */ }
+
+
+        #gameOverScreen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.85); display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; z-index: 100;
+        }
+        #gameOverScreen h2 {
+            font-size: 40px; /* Reduced font size */
+            color: #E53935; margin-bottom: 10px;
+        }
+        #gameOverScreen p {
+            font-size: 18px; /* Reduced font size */
+            margin-bottom: 15px; /* Reduced margin */
+        }
+        #shareButton { background-color: #009688; margin-top: 8px; } /* Reduced margin */
+        #shareFallbackMessage { font-size: 12px; margin-top: 5px; display: none; color: #ccc; }
+
+        #bottomBar {
+            position: absolute; bottom: 15px; /* Slightly higher */
+            left: 50%; transform: translateX(-50%);
+            z-index: 20;
+        }
+        #bottomBar #castButton {
+            background-color: #4CAF50;
+            font-size: 16px; /* Reduced font size */
+            padding: 10px 20px; /* Reduced padding */
+            width: auto;
+            min-width: 140px; /* Reduced min-width */
+        }
+        #bottomBar #castButton:disabled { background-color: #aaa; cursor: not-allowed; }
+
+        #swatCircleButton {
+            position: absolute;
+            top: 50%;
+            right: 20px; /* Closer to edge */
+            transform: translateY(-50%);
+            width: 70px; height: 70px; /* Reduced size */
+            background-color: rgba(255, 193, 7, 0.3); border: 2px solid #FFC107;
+            border-radius: 50%; color: white;
+            font-size: 14px; /* Reduced font size */
+            font-weight: bold;
+            text-align: center;
+            line-height: 66px; /* Adjusted for new height and border */
+            cursor: pointer;
+            z-index: 20; display: none; box-shadow: 0 0 8px rgba(255, 193, 7, 0.5); /* Reduced shadow */
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+        #swatCircleButton:hover { background-color: rgba(255, 193, 7, 0.5); }
+        #swatCircleButton:active { transform: translateY(-50%) scale(0.95); }
+        #swatCircleButton:disabled { background-color: rgba(170,170,170,0.3); border-color: #aaa; cursor:not-allowed; box-shadow:none; }
+
+        #leaderboardToggle {
+            background-color: #007BFF; width: auto;
+            padding-left: 10px; padding-right: 10px; /* Reduced padding */
+        }
+        #leaderboardPopup {
+            position: absolute; top: 55px; /* Adjusted relative to new ui-container top */
+            left: 10px; background-color: rgba(0,0,0,0.9);
+            border: 1px solid #555; border-radius: 5px;
+            padding: 12px; /* Reduced padding */
+            z-index: 100;
+            display: none; min-width: 240px; /* Reduced min-width */
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.5); /* Reduced shadow */
+        }
+        #leaderboardPopup h3, #leaderboardContainer h3 { margin-top: 0; margin-bottom: 10px; text-align: center; color: #FFEB3B; font-size: 16px;}
+        #leaderboardPopup ol, #leaderboardContainer ol { padding-left: 0px; list-style-type: none; }
+        #leaderboardPopup li, #leaderboardContainer li {
+            margin-bottom: 4px; display: flex; justify-content: space-between;
+            font-size: 13px; /* Reduced font size */
+        }
+        #leaderboardPopup li .rank, #leaderboardContainer li .rank { width:22px; text-align:right; margin-right:6px; color:#aaa;}
+        #leaderboardPopup li .name, #leaderboardContainer li .name { flex-grow:1; color:#eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+        #leaderboardPopup li .score, #leaderboardContainer li .score { width:60px; text-align:right; margin-right:8px; font-weight:bold; color:#FFD700;}
+        #leaderboardPopup li .fish, #leaderboardContainer li .fish { font-size:0.9em; color:#ccc; width:60px; text-align:right; }
+        #closeLeaderboardButton { display: block; margin: 10px auto 0 auto; background-color: #f44336; }
+
+        #nameEntryContainer {
+            display: none; margin-top: 12px; padding: 12px;
+            background-color: rgba(255,255,255,0.1); border-radius: 5px;
+            max-width: 280px; /* Reduced max-width */
+        }
+        #nameEntryContainer p { font-size: 14px; color: #FFEB3B; margin-bottom: 8px;}
+        #playerNameInput {
+            padding: 7px; margin-bottom: 8px; width: calc(100% - 16px);
+            border-radius: 3px; border: 1px solid #555; background-color: #444; color: white;
+        }
+        #submitScoreButton { background-color: #007BFF; }
+    </style>
+</head>
+<body>
+    <div id="topBar">
+        <div id="healthContainer">
+            <span>Health:</span>
+            <div id="healthBarOuter"><div id="healthBarInner"></div></div>
+        </div>
+    </div>
+
+    <div id="ui-container">
+        <h1 id="gameTitle">Fishing Heck</h1>
+        <div id="rotationControls">
+            <button id="rotateLeftButton" class="game-button rotate-button">&lt; Rotate</button>
+            <button id="rotateRightButton" class="game-button rotate-button">Rotate &gt;</button>
+        </div>
+        <div id="scoreBoard">Score: 0</div>
+        <div id="fishCaughtDisplay">Fish Caught: 0</div>
+        <!-- HealthContainer moved to topBar -->
+        <div id="fishInfo"></div>
+        <button id="leaderboardToggle" class="game-button">Leaderboard</button>
+    </div>
+
+    <div id="bottomBar">
+        <button id="castButton" class="game-button">Cast Line</button>
+    </div>
+    <button id="swatCircleButton">SWAT</button>
+
+    <div id="leaderboardPopup">
+        <h3>High Scores</h3>
+        <ol id="leaderboardListPopup"></ol>
+        <button id="closeLeaderboardButton" class="game-button">Close</button>
+    </div>
+
+    <div id="gameOverScreen">
+        <div>
+            <h2>GAME OVER</h2>
+            <p id="finalScoreMessage">Your final score: 0</p>
+            <div id="nameEntryContainer">
+                <p>New High Score!</p>
+                <input type="text" id="playerNameInput" placeholder="Enter name (3-10 chars)" maxlength="10">
+                <button id="submitScoreButton" class="game-button">Submit Score</button>
+            </div>
+            <button id="restartButton" class="game-button" style="background-color: #1E88E5;">Restart Game</button>
+            <button id="shareButton" class="game-button">Share Score</button>
+            <p id="shareFallbackMessage"></p>
+            <div id="leaderboardContainer">
+                <h3>High Scores</h3>
+                <ol id="leaderboardListGameOver"></ol>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/examples/jsm/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { Water } from 'three/examples/jsm/objects/Water.js';
+
+        const DEBUG_FLIES = true;
+        const DEBUG_REEL = true;
+        const MAX_HEALTH = 100;
+        const FLY_DAMAGE_PER_FLY_BASE = 5;
+        const MAX_FLY_DAMAGE_MULTIPLIER = 3.0;
+        const TIME_TO_INCREASE_FLY_DAMAGE_MS = 60000;
+        const MAX_ACTIVE_FLIES = 4;
+        const FLY_SCALE_MULTIPLIER = 1.8;
+        const FLY_LIFESPAN_MS = 10000;
+        const FLY_DAMAGE_TICK_MS = 2000;
+        const ADD_FLY_DELAY_MS = 3000;
+        const REELING_TIME_LIMIT_MS = 8000;
+        const SOUND_MASTER_VOLUME = 0.2;
+        const CAMERA_ORBIT_RADIUS = 3.5;
+        const CAMERA_PIVOT_Y = 1.6;
+        const CAMERA_LOOK_AT_Y_OFFSET = -0.5;
+        const ROTATION_INCREMENT = Math.PI / 16;
+        const LEADERBOARD_MAX_ENTRIES = 5;
+
+        let scene, camera, renderer;
+        let water, bobber, currentCaughtFish, directionalLight;
+        let gamePhase = 'idle';
+        let biteTimeout, getAwayTimeout;
+        let score = 0;
+        let fishCaughtCount = 0;
+        let highScore = 0;
+        let leaderboard = [];
+
+        let playerHealth = MAX_HEALTH;
+        let flyDamageMultiplier = 1.0;
+        let flyDamageIncreaseIntervalId;
+        let activeFlies = [];
+        let initialFlySpawnChance = 0.7;
+        let subsequentFlySpawnChance = 0.4;
+        let considerInitialFlyTimeoutId, considerAdditionalFlyTimeoutId, flyDamageIntervalId;
+        let clicksRequired = 0, clicksMade = 0, reelTimeoutId;
+        let lastCaughtFishData = null;
+
+        let audioListener, audioLoader;
+        let castSound, splashBobberSound, biteSound, reelClickSound, fishLandSound,
+            lineSnapSound, flySpawnSound, swatSound, uiClickSound, damageSound;
+
+        let cameraPivotPoint;
+        let cameraAzimuthAngle = Math.PI;
+
+        let castButtonEl, swatCircleButtonEl, fishInfoDivEl, scoreBoardDivEl, healthBarInnerEl,
+            gameOverScreenEl, finalScoreMessageEl, restartButtonEl, shareButtonEl,
+            shareFallbackMessageEl, rotateLeftButtonEl, rotateRightButtonEl, rotationControlsDivEl,
+            fishCaughtDisplayEl, leaderboardToggleEl, leaderboardPopupEl, leaderboardListPopupEl,
+            closeLeaderboardButtonEl, leaderboardContainerEl, leaderboardListGameOverEl,
+            nameEntryContainerEl, playerNameInputEl, submitScoreButtonEl;
+
+
+        const baseFishTypes = [
+            { name: 'Minnow', baseSize: { length: 0.3, height: 0.15, width: 0.1 }, points: 10, clicksToReel: 1, colorPalette: ['#A0A0A0', '#B0B0B0', '#C0C0C0'] },
+            { name: 'Goldfish', baseSize: { length: 0.4, height: 0.25, width: 0.15 }, points: 20, clicksToReel: 2, colorPalette: ['#FFA500', '#FFD700', '#FF8C00'] },
+            { name: 'Trout', baseSize: { length: 0.6, height: 0.2, width: 0.15 }, points: 30, clicksToReel: 3, colorPalette: ['#B4E2A2', '#88C476', '#67A956'] },
+            { name: 'Bass', baseSize: { length: 0.7, height: 0.3, width: 0.2 }, points: 50, clicksToReel: 4, colorPalette: ['#556B2F', '#6B8E23', '#8FBC8F'] },
+            { name: 'Piranha', baseSize: { length: 0.45, height: 0.35, width: 0.12 }, points: 70, clicksToReel: 3, colorPalette: ['#C0C0C0', '#D3D3D3', '#DC143C'] },
+            { name: 'Anglerfish', baseSize: { length: 0.8, height: 0.5, width: 0.4 }, points: 100, clicksToReel: 5, colorPalette: ['#4A3B31', '#6B5B50', '#2F251E'] }
+        ];
+
+        class Fish extends THREE.Group {
+            constructor(fishTypeData) {
+                super(); this.fishTypeData = fishTypeData;
+                const randomBodyColorHex = fishTypeData.colorPalette[Math.floor(Math.random() * fishTypeData.colorPalette.length)];
+                const bodyMaterial = new THREE.MeshStandardMaterial({ color: randomBodyColorHex, roughness: 0.4, metalness: 0.1 });
+                const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 });
+                const bodyProportions = { l: 1, h: 0.4, w: 0.25 };
+                const bodyGeom = new THREE.BoxGeometry(bodyProportions.l, bodyProportions.h, bodyProportions.w);
+                this.body = new THREE.Mesh(bodyGeom, bodyMaterial); this.add(this.body);
+                const tailGeom = new THREE.PlaneGeometry(bodyProportions.h * 1.2, bodyProportions.h * 0.8);
+                this.tailFin = new THREE.Mesh(tailGeom, bodyMaterial); this.tailFin.position.x = -bodyProportions.l*0.5-(bodyProportions.h*0.8*0.4); this.tailFin.rotation.y = Math.PI / 2; this.add(this.tailFin);
+                const dorsalGeom = new THREE.PlaneGeometry(bodyProportions.l * 0.4, bodyProportions.h * 0.5);
+                this.dorsalFin = new THREE.Mesh(dorsalGeom, bodyMaterial); this.dorsalFin.position.set(0, bodyProportions.h*0.5+(bodyProportions.h*0.5*0.4), 0); this.dorsalFin.rotation.x = Math.PI / 2; this.add(this.dorsalFin);
+                const pectoralGeom = new THREE.PlaneGeometry(bodyProportions.l * 0.25, bodyProportions.h * 0.3);
+                this.leftPectoralFin = new THREE.Mesh(pectoralGeom, bodyMaterial); this.leftPectoralFin.position.set(bodyProportions.l*0.15, -bodyProportions.h*0.1, bodyProportions.w*0.5); this.leftPectoralFin.rotation.y = -Math.PI / 4; this.add(this.leftPectoralFin);
+                this.rightPectoralFin = this.leftPectoralFin.clone(); this.rightPectoralFin.position.z = -bodyProportions.w*0.5; this.rightPectoralFin.rotation.y = Math.PI / 4; this.add(this.rightPectoralFin);
+                const eyeGeom = new THREE.SphereGeometry(bodyProportions.h * 0.1, 8, 8);
+                this.leftEye = new THREE.Mesh(eyeGeom, eyeMaterial); this.leftEye.position.set(bodyProportions.l*0.35, bodyProportions.h*0.15, bodyProportions.w*0.5); this.add(this.leftEye);
+                this.rightEye = this.leftEye.clone(); this.rightEye.position.z = -bodyProportions.w*0.5; this.add(this.rightEye);
+                const size = fishTypeData.baseSize; this.scale.set(size.length, size.height, size.width);
+                this.traverse((child) => { if (child.isMesh) child.castShadow = true; });
+            }
+         }
+
+        function updateCameraOrbit() {
+            if (!camera || !cameraPivotPoint) return;
+            camera.position.x = cameraPivotPoint.x + CAMERA_ORBIT_RADIUS * Math.sin(cameraAzimuthAngle);
+            camera.position.z = cameraPivotPoint.z + CAMERA_ORBIT_RADIUS * Math.cos(cameraAzimuthAngle);
+            camera.position.y = CAMERA_PIVOT_Y;
+            camera.lookAt(cameraPivotPoint.x, CAMERA_PIVOT_Y + CAMERA_LOOK_AT_Y_OFFSET, cameraPivotPoint.z );
+        }
+
+        function handleRotateLeft() {
+            if (gamePhase !== 'idle' && gamePhase !== 'caught') return;
+            if (uiClickSound && !uiClickSound.isPlaying) uiClickSound.play();
+            cameraAzimuthAngle += ROTATION_INCREMENT; updateCameraOrbit();
+        }
+
+        function handleRotateRight() {
+            if (gamePhase !== 'idle' && gamePhase !== 'caught') return;
+            if (uiClickSound && !uiClickSound.isPlaying) uiClickSound.play();
+            cameraAzimuthAngle -= ROTATION_INCREMENT; updateCameraOrbit();
+        }
+
+        function loadSounds() {
+            if (!audioListener) { console.error("AudioListener not ready for loadSounds"); return; }
+            audioLoader = new THREE.AudioLoader(); const soundPath = 'sounds/';
+            const loadAudio = (fileName, loop = false) => {
+                const sound = new THREE.Audio(audioListener);
+                audioLoader.load(soundPath + fileName, (buffer) => { sound.setBuffer(buffer); sound.setLoop(loop); sound.setVolume(SOUND_MASTER_VOLUME); },
+                                 () => {}, (err) => { console.error(`Error loading sound: ${fileName}`, err); });
+                return sound;
+            };
+            castSound = loadAudio('cast.mp3'); splashBobberSound = loadAudio('splash_bobber.mp3'); biteSound = loadAudio('bite.mp3');
+            reelClickSound = loadAudio('reel_click.mp3'); fishLandSound = loadAudio('fish_land.mp3'); lineSnapSound = loadAudio('line_snap.mp3');
+            flySpawnSound = loadAudio('fly_spawn.mp3'); swatSound = loadAudio('swat.mp3'); uiClickSound = loadAudio('ui_click.mp3'); damageSound = loadAudio('damage.mp3');
+        }
+
+        function onWindowResize() {
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+
+        function init() {
+            console.log("INIT START");
+            castButtonEl=document.getElementById('castButton');
+            swatCircleButtonEl = document.getElementById('swatCircleButton');
+            fishInfoDivEl=document.getElementById('fishInfo'); scoreBoardDivEl=document.getElementById('scoreBoard'); healthBarInnerEl=document.getElementById('healthBarInner'); gameOverScreenEl=document.getElementById('gameOverScreen'); finalScoreMessageEl=document.getElementById('finalScoreMessage'); restartButtonEl=document.getElementById('restartButton'); shareButtonEl=document.getElementById('shareButton'); shareFallbackMessageEl=document.getElementById('shareFallbackMessage'); rotateLeftButtonEl=document.getElementById('rotateLeftButton'); rotateRightButtonEl=document.getElementById('rotateRightButton'); rotationControlsDivEl=document.getElementById('rotationControls');
+            fishCaughtDisplayEl = document.getElementById('fishCaughtDisplay');
+
+            leaderboardToggleEl = document.getElementById('leaderboardToggle');
+            leaderboardPopupEl = document.getElementById('leaderboardPopup');
+            leaderboardListPopupEl = document.getElementById('leaderboardListPopup');
+            closeLeaderboardButtonEl = document.getElementById('closeLeaderboardButton');
+            leaderboardContainerEl = document.getElementById('leaderboardContainer');
+            leaderboardListGameOverEl = document.getElementById('leaderboardListGameOver');
+            nameEntryContainerEl = document.getElementById('nameEntryContainer');
+            playerNameInputEl = document.getElementById('playerNameInput');
+            submitScoreButtonEl = document.getElementById('submitScoreButton');
+            console.log("INIT: DOM elements retrieved.");
+
+            scene = new THREE.Scene(); console.log("INIT: Scene created.");
+            cameraPivotPoint = new THREE.Vector3(0, CAMERA_PIVOT_Y, 0); console.log("INIT: Cam pivot created.");
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); console.log("INIT: Cam created.");
+            updateCameraOrbit(); console.log("INIT: Cam orbit updated.");
+            audioListener = new THREE.AudioListener(); camera.add(audioListener); console.log("INIT: Audio listener added.");
+            loadSounds(); console.log("INIT: Sounds loading initiated.");
+            renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; document.body.appendChild(renderer.domElement); console.log("INIT: Renderer created.");
+            const cubeLoader = new THREE.CubeTextureLoader(); const skyboxTexture = cubeLoader.setPath('textures/skybox/').load(['px.jpg', 'nx.jpg', 'py.jpg', 'ny.jpg', 'pz.jpg', 'nz.jpg']); scene.background = skyboxTexture; scene.environment = skyboxTexture; console.log("INIT: Skybox setup.");
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); scene.add(ambientLight);
+            directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); directionalLight.position.set(10, 15, 10); directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024; directionalLight.shadow.mapSize.height = 1024; directionalLight.shadow.camera.near = 0.5; directionalLight.shadow.camera.far = 50; directionalLight.shadow.camera.left = -20; directionalLight.shadow.camera.right = 20; directionalLight.shadow.camera.top = 20; directionalLight.shadow.camera.bottom = -20; directionalLight.shadow.bias = -0.0005;
+            scene.add(directionalLight); console.log("INIT: Lights setup.");
+            const waterGeometry = new THREE.PlaneGeometry(100, 100); const waterNormals = new THREE.TextureLoader().load( 'https://threejs.org/examples/textures/waternormals.jpg', t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; });
+            water = new Water(waterGeometry, { textureWidth: 512, textureHeight: 512, waterNormals: waterNormals, sunDirection: new THREE.Vector3(), sunColor: 0xffffff, waterColor: 0x003040, distortionScale: 3.0, fog: scene.fog !== undefined });
+            water.rotation.x = -Math.PI / 2; water.position.y = 0; water.receiveShadow = true; scene.add(water);
+            if (water && water.material.uniforms.sunDirection) water.material.uniforms.sunDirection.value.copy(directionalLight.position).normalize();
+            console.log("INIT: Water setup.");
+            const bobberGeometry = new THREE.SphereGeometry(0.1, 16, 16); const bobberMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.5 });
+            bobber = new THREE.Mesh(bobberGeometry, bobberMaterial); bobber.castShadow = true; bobber.visible = false; scene.add(bobber);
+            console.log("INIT: Bobber setup.");
+
+            if (restartButtonEl) restartButtonEl.addEventListener('click', () => { if (uiClickSound && !uiClickSound.isPlaying) uiClickSound.play(); restartGame(); });
+            if (shareButtonEl) shareButtonEl.addEventListener('click', () => { if (uiClickSound && !uiClickSound.isPlaying) uiClickSound.play(); handleShareScore(); });
+            if (castButtonEl) castButtonEl.addEventListener('click', handlePrimaryAction);
+            if (swatCircleButtonEl) swatCircleButtonEl.addEventListener('click', handleSwatFly);
+            if (rotateLeftButtonEl) rotateLeftButtonEl.addEventListener('click', handleRotateLeft);
+            if (rotateRightButtonEl) rotateRightButtonEl.addEventListener('click', handleRotateRight);
+            if (submitScoreButtonEl) submitScoreButtonEl.addEventListener('click', handleSubmitScore);
+            if (leaderboardToggleEl) leaderboardToggleEl.addEventListener('click', toggleLeaderboardPopup);
+            if (closeLeaderboardButtonEl) closeLeaderboardButtonEl.addEventListener('click', toggleLeaderboardPopup);
+            console.log("INIT: Event listeners added.");
+
+            window.addEventListener('resize', onWindowResize, false); console.log("INIT: Resize listener added.");
+            loadLeaderboard();
+            resetGameVariables(); console.log("INIT: resetGameVariables called.");
+            updateUI(); console.log("INIT: updateUI called.");
+            animate(); console.log("INIT: animate called. Init complete.");
+        }
+
+        function resetGameVariables() {
+            score=0; playerHealth=MAX_HEALTH; gamePhase='idle'; fishCaughtCount = 0;
+            if(fishInfoDivEl) fishInfoDivEl.textContent = "Welcome! Cast line.";
+            if(currentCaughtFish){scene.remove(currentCaughtFish); currentCaughtFish=null;}
+            if(bobber) bobber.visible=false;
+            clearAllFlyEvents(false);
+            clearTimeout(biteTimeout); clearTimeout(getAwayTimeout); clearTimeout(reelTimeoutId);
+            flyDamageMultiplier=1.0; console.log(`[FlyDamageProgression] Reset. Multi: ${flyDamageMultiplier}, HP: ${MAX_HEALTH}`);
+            clearInterval(flyDamageIncreaseIntervalId);
+            flyDamageIncreaseIntervalId=setInterval(increaseFlyDamage, TIME_TO_INCREASE_FLY_DAMAGE_MS);
+            if(shareFallbackMessageEl) shareFallbackMessageEl.style.display='none';
+            if(nameEntryContainerEl) nameEntryContainerEl.style.display = 'none';
+            if(leaderboardPopupEl) leaderboardPopupEl.style.display = 'none';
+            cameraAzimuthAngle=Math.PI; if(camera) updateCameraOrbit();
+        }
+
+        function increaseFlyDamage() {
+            if(gamePhase==='gameover'){clearInterval(flyDamageIncreaseIntervalId); return;}
+            if(flyDamageMultiplier < MAX_FLY_DAMAGE_MULTIPLIER){
+                flyDamageMultiplier=Math.min(flyDamageMultiplier+0.25, MAX_FLY_DAMAGE_MULTIPLIER);
+                if(DEBUG_FLIES)console.log(`[FlyDamageProgression] Multi to: ${flyDamageMultiplier.toFixed(2)}`);
+            } else {
+                if(DEBUG_FLIES)console.log(`[FlyDamageProgression] Multi at max: ${flyDamageMultiplier.toFixed(2)}`);
+                clearInterval(flyDamageIncreaseIntervalId);
+            }
+        }
+        async function handleShareScore() {
+            const shareText = `I scored ${score} (${fishCaughtCount} fish) in Fishing Heck!`; const gameUrl = window.location.href;
+            const shareData = {title:'Fishing Heck Score!', text:shareText, url:gameUrl};
+            if(shareFallbackMessageEl) shareFallbackMessageEl.style.display = 'none';
+            if(navigator.share){
+                try {
+                    await navigator.share(shareData); if(DEBUG_FLIES)console.log('Shared via Web Share');
+                    if(shareFallbackMessageEl){shareFallbackMessageEl.textContent="Shared!"; shareFallbackMessageEl.style.display='block';}
+                } catch(err) {
+                    if(DEBUG_FLIES)console.error('Web Share Error:',err);
+                    if(err.name !== 'AbortError' && shareFallbackMessageEl){
+                        shareFallbackMessageEl.textContent="Share failed. Copy?"; shareFallbackMessageEl.style.display='block';
+                        attemptCopyToClipboard(`${shareText} Play: ${gameUrl}`);
+                    }
+                }
+            } else { if(DEBUG_FLIES)console.log('Web Share not supported.'); attemptCopyToClipboard(`${shareText} Play: ${gameUrl}`);}
+        }
+        function attemptCopyToClipboard(text) {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+                navigator.clipboard.writeText(text).then(()=>{
+                    if(DEBUG_FLIES)console.log('Copied!'); if(shareFallbackMessageEl){shareFallbackMessageEl.textContent="Copied!";shareFallbackMessageEl.style.display='block';}
+                }).catch(err=>{
+                    if(DEBUG_FLIES)console.error('Copy failed:',err); if(shareFallbackMessageEl){shareFallbackMessageEl.textContent="Manual copy.";shareFallbackMessageEl.style.display='block';}
+                    prompt("Copy this:",text);
+                });
+            } else {if(shareFallbackMessageEl){shareFallbackMessageEl.textContent="Manual copy.";shareFallbackMessageEl.style.display='block';} prompt("Copy this:",text);}
+        }
+
+        function handlePrimaryAction() {
+            console.log(`[InputDebug] handlePrimaryAction. Phase: ${gamePhase}. Btn: ${castButtonEl ? castButtonEl.textContent : 'N/A'}`);
+            if(gamePhase==='gameover')return; if(!castButtonEl){console.error("Cast button N/A"); return;}
+            if(gamePhase==='idle'||gamePhase==='caught'){castLine();}
+            else if(gamePhase==='waiting'){if(uiClickSound&&!uiClickSound.isPlaying)uiClickSound.play(); reelInEarly();}
+            else if(gamePhase==='biting'){console.log("[InputDebug] 'biting' branch. Call startReelingProcess."); startReelingProcess();}
+            else if(gamePhase==='reeling-struggle'){handleReelClick();}
+        }
+
+        function reelInEarly() {
+            if(gamePhase!=='waiting')return; console.log("[ReelDebug] Player reeled early."); gamePhase='reeling-empty';
+            if(fishInfoDivEl)fishInfoDivEl.textContent="Reeled in too soon...";
+            clearTimeout(biteTimeout); clearAllFlyEvents(true);
+            if(bobber)bobber.visible=true;
+            const startPos=bobber.position.clone(); const forwardVec=new THREE.Vector3(); camera.getWorldDirection(forwardVec);
+            const endPos=new THREE.Vector3().copy(camera.position).add(forwardVec.multiplyScalar(0.8)); endPos.y=camera.position.y-0.2;
+            const duration=500; let startTime=performance.now();
+            function animateReelBack(){
+                if(gamePhase!=='reeling-empty'){if(bobber)bobber.visible=false;return;}
+                let progress=Math.min((performance.now()-startTime)/duration,1);
+                if(bobber){ bobber.position.lerpVectors(startPos,endPos,progress);
+                    const midY=(startPos.y+endPos.y)/2+0.3;
+                    if(progress<0.5)bobber.position.y=THREE.MathUtils.lerp(startPos.y,midY,progress*2);
+                    else bobber.position.y=THREE.MathUtils.lerp(midY,endPos.y,(progress-0.5)*2);
+                }
+                if(progress<1)requestAnimationFrame(animateReelBack);
+                else{if(bobber)bobber.visible=false;gamePhase='idle';if(fishInfoDivEl)fishInfoDivEl.textContent="Nothing. Cast again!";updateUI();}
+            }
+            animateReelBack();updateUI();
+        }
+
+        function castLine() {
+            if(gamePhase==='gameover'||gamePhase==='casting'||gamePhase==='waiting'||gamePhase==='reeling-struggle'||gamePhase==='reeling-landing'||gamePhase==='reeling-empty')return;
+            if(currentCaughtFish){scene.remove(currentCaughtFish);currentCaughtFish=null;}
+            if(castSound){ if(castSound.isPlaying) castSound.stop(); castSound.play(); }
+            if(castButtonEl)castButtonEl.disabled=true;updateUI();
+            clearAllFlyEvents(false);
+            clearTimeout(reelTimeoutId);clearTimeout(biteTimeout);clearTimeout(getAwayTimeout);
+            gamePhase='casting';if(fishInfoDivEl)fishInfoDivEl.textContent='Casting...';
+            const castDirection=new THREE.Vector3();camera.getWorldDirection(castDirection);
+            if(bobber){bobber.position.copy(camera.position).add(castDirection.clone().multiplyScalar(0.8)).add(new THREE.Vector3(0,-0.4,0));bobber.visible=true;bobber.material.color.set(0xff0000);}else{console.error("Bobber N/A in castLine");return;}
+            let castDistance=Math.random()*4+5;const startY=bobber.position.y;
+            let castTargetPos=new THREE.Vector3().copy(camera.position).add(castDirection.multiplyScalar(castDistance)); castTargetPos.y=water.position.y+0.05;
+            let castDuration=1000,startTime=performance.now(); const peakY=Math.max(startY,water.position.y+0.05)+1.5;
+            function animateCast(){
+                if(gamePhase!=='casting'){ if(bobber)bobber.visible=false; if (castSound && castSound.isPlaying) castSound.stop(); updateUI();return; }
+                let progress=Math.min((performance.now()-startTime)/castDuration,1);
+                if(bobber){ bobber.position.x=THREE.MathUtils.lerp(bobber.position.x,castTargetPos.x,progress); bobber.position.z=THREE.MathUtils.lerp(bobber.position.z,castTargetPos.z,progress);
+                    if(progress<0.5)bobber.position.y=THREE.MathUtils.lerp(startY,peakY,progress*2); else bobber.position.y=THREE.MathUtils.lerp(peakY,castTargetPos.y,(progress-0.5)*2);
+                }
+                if(progress<1)requestAnimationFrame(animateCast);
+                else{
+                    if(bobber)bobber.position.y=castTargetPos.y;
+                    if (castSound && castSound.isPlaying) castSound.stop();
+                    if(splashBobberSound&&!splashBobberSound.isPlaying)splashBobberSound.play();
+                    gamePhase='waiting';if(fishInfoDivEl)fishInfoDivEl.textContent='Waiting for a bite...';
+                    console.log("[BiteDebug] Calling startWaitForBite from castLine. Phase:",gamePhase); startWaitForBite();
+                    if(DEBUG_FLIES)console.log("[FlyDebug] castLine: schedInitialFlyConsideration"); scheduleInitialFlyConsideration();
+                }
+                updateUI();
+            }
+            animateCast();
+        }
+
+        function startWaitForBite() {
+            if(gamePhase!=='waiting'){console.log("[BiteDebug] startWaitForBite skipped, phase:",gamePhase);return;}
+            const waitTime = Math.random() * 3000 + 2000;
+            console.log(`[BiteDebug] Setting biteTimeout: ${waitTime.toFixed(0)}ms. Phase: ${gamePhase}`);
+            clearTimeout(biteTimeout);
+            biteTimeout=setTimeout(()=>{ console.log("[BiteDebug] Bite TIMEOUT FIRED. Phase:",gamePhase);
+                if(gamePhase==='waiting'){console.log("[BiteDebug] Calling fishBites().");fishBites();}
+                else{console.log("[BiteDebug] Bite ignored, phase changed.");}
+            },waitTime);
+        }
+        let bobberBobbingTime = 0;
+        function animateBobberWaiting() {
+            if(gamePhase==='waiting'&&bobber&&bobber.visible){
+                bobberBobbingTime+=0.05; bobber.position.y=water.position.y+0.05+Math.sin(bobberBobbingTime)*0.03;
+            }
+        }
+        function fishBites() {
+            console.log("[BiteDebug] fishBites() ENTERED. Phase:",gamePhase);
+            if(gamePhase!=='waiting'){console.error("[BiteDebug] CRITICAL: fishBites called when phase NOT 'waiting'. Phase:",gamePhase);return;}
+            if(DEBUG_FLIES&&activeFlies.length>0)console.log("[FlyDebug] fishBites: Flies active!");
+            if(biteSound&&!biteSound.isPlaying)biteSound.play();
+            clearTimeout(biteTimeout);gamePhase='biting'; console.log("[BiteDebug] fishBites: gamePhase set to 'biting'.");
+            if(fishInfoDivEl)fishInfoDivEl.textContent='BITE! Reel it in!';
+            if(bobber&&bobber.visible)bobber.material.color.set(0xffff00);
+            let dipStartTime=performance.now();const initialBobberY=bobber?bobber.position.y:water.position.y+0.05;
+            function animateDip(){
+                if(gamePhase!=='biting'||!bobber||!bobber.visible){if(bobber&&bobber.visible){bobber.material.color.set(0xff0000);bobber.position.y=water.position.y+0.05;}return;}
+                let t=(performance.now()-dipStartTime)/200; bobber.position.y=initialBobberY-Math.sin(Math.min(t,1)*Math.PI)*0.15;
+                if(t<1.5)requestAnimationFrame(animateDip);
+                else if(gamePhase==='biting'&&bobber.visible)bobber.position.y=initialBobberY-0.15;
+            }
+            animateDip();updateUI(); console.log("[BiteDebug] fishBites: updateUI called. Button should be 'Reel In'.");
+            clearTimeout(getAwayTimeout);
+            getAwayTimeout=setTimeout(()=>{console.log("[BiteDebug] getAwayTimeout FIRED. Phase:",gamePhase);if(gamePhase==='biting')fishGotAway();},2000+Math.random()*1000);
+        }
+
+        function generateAndShowFish() {
+            console.log("[ReelDebug] generateAndShowFish START. baseFishTypes:",baseFishTypes?baseFishTypes.length:'undefined');
+            if(currentCaughtFish){scene.remove(currentCaughtFish);currentCaughtFish=null;}
+            if(!baseFishTypes||baseFishTypes.length===0){console.error("[ReelDebug] ERROR: baseFishTypes empty/undefined!");lastCaughtFishData=null;return;}
+            const fishTypeIndex=Math.floor(Math.random()*baseFishTypes.length); const fishType=baseFishTypes[fishTypeIndex];
+            if(!fishType){console.error(`[ReelDebug] ERROR: fishType undefined. Index: ${fishTypeIndex}`);lastCaughtFishData=null;return;}
+            lastCaughtFishData={name:fishType.name,size:(fishType.baseSize.length*100*(1+(Math.random()-0.5)*0.2)).toFixed(1),points:fishType.points,clicksToReel:fishType.clicksToReel};
+            console.log("[ReelDebug] generateAndShowFish: lastCaughtFishData ASSIGNED:",JSON.stringify(lastCaughtFishData));
+            currentCaughtFish=new Fish(fishType);
+            if(lastCaughtFishData)lastCaughtFishData.colorName=getColorNameFromHex(currentCaughtFish.body.material.color.getHexString());
+            else console.error("[ReelDebug] CRITICAL: lastCaughtFishData null after assignment in generateAndShowFish.");
+            if(currentCaughtFish)currentCaughtFish.visible=false;scene.add(currentCaughtFish);
+            if(DEBUG_REEL&&lastCaughtFishData)console.log(`[ReelDebug] Generated ${lastCaughtFishData.name}, clicks ${lastCaughtFishData.clicksToReel}.`);
+        }
+        function startReelingProcess() {
+            if(gamePhase!=='biting')return; clearTimeout(getAwayTimeout);gamePhase='reeling-struggle';
+            if(bobber)bobber.visible=false; generateAndShowFish();
+            if(!lastCaughtFishData){console.error("[ReelDebug] Aborting reel: lastCaughtFishData null.");gamePhase='idle';if(fishInfoDivEl)fishInfoDivEl.textContent="Error with fish.";updateUI();return;}
+            clicksRequired=lastCaughtFishData.clicksToReel||3;clicksMade=0;
+            if(fishInfoDivEl)fishInfoDivEl.textContent=`It's a fighter! Reel!`;
+            if(currentCaughtFish&&bobber){ currentCaughtFish.position.copy(bobber.position); currentCaughtFish.position.y=water.position.y-0.3; currentCaughtFish.lookAt(camera.position); currentCaughtFish.visible=true;
+            }else{console.error("[ReelDebug] currentCaughtFish or bobber null.");gamePhase='idle';updateUI();return;}
+            if(DEBUG_REEL)console.log(`[ReelDebug] Starting reel. Clicks: ${clicksRequired} for ${lastCaughtFishData.name}`);
+            clearTimeout(reelTimeoutId);
+            reelTimeoutId=setTimeout(()=>{if(gamePhase==='reeling-struggle'){if(DEBUG_REEL)console.log("[ReelDebug] Reeling timed out!");if(fishInfoDivEl)fishInfoDivEl.textContent="Aargh! Snapped!";lineSnapped();}},REELING_TIME_LIMIT_MS+(clicksRequired*500));
+            updateUI();
+        }
+        function handleReelClick() {
+            if(gamePhase!=='reeling-struggle'||!currentCaughtFish)return;
+            if(reelClickSound){if(reelClickSound.isPlaying)reelClickSound.stop();reelClickSound.play();}
+            clicksMade++;if(DEBUG_REEL)console.log(`[ReelDebug] Reel click! ${clicksMade}/${clicksRequired}`);
+            const thrashDirection=new THREE.Vector3().subVectors(camera.position,currentCaughtFish.position).normalize();
+            currentCaughtFish.position.add(thrashDirection.multiplyScalar(0.02));
+            currentCaughtFish.rotation.z+=(Math.random()-0.5)*0.4;currentCaughtFish.rotation.x+=(Math.random()-0.5)*0.2;
+            setTimeout(()=>{if(currentCaughtFish&&currentCaughtFish.visible)currentCaughtFish.lookAt(camera.position);},150);
+            if(clicksMade>=clicksRequired){clearTimeout(reelTimeoutId);if(DEBUG_REEL)console.log("[ReelDebug] All clicks made! Land.");landTheFish();}
+            else{if(fishInfoDivEl)fishInfoDivEl.textContent=`Pull!`;}
+            updateUI();
+        }
+        function lineSnapped() {
+            if(DEBUG_REEL)console.log("[ReelDebug] Line snapped.");if(lineSnapSound&&!lineSnapSound.isPlaying)lineSnapSound.play();
+            gamePhase='idle';if(bobber)bobber.visible=false;
+            if(currentCaughtFish){scene.remove(currentCaughtFish);currentCaughtFish=null;}
+            if(fishInfoDivEl)fishInfoDivEl.textContent="Line snapped!";updateUI();
+        }
+        function landTheFish() {
+            gamePhase='reeling-landing';if(fishInfoDivEl)fishInfoDivEl.textContent='Got it! Landing...';
+            let reelStartTime=performance.now();const reelDuration=1500;
+            if(!currentCaughtFish){console.error("Cannot land: currentCaughtFish null");gamePhase='idle';updateUI();return;}
+            const startPos=currentCaughtFish.position.clone(); const forwardVec=new THREE.Vector3();camera.getWorldDirection(forwardVec);
+            const targetPos=new THREE.Vector3().copy(camera.position).add(forwardVec.multiplyScalar(1.2)).add(new THREE.Vector3(0,-0.3,0));
+            function animateLand(){
+                if(gamePhase!=='reeling-landing'){if(currentCaughtFish)currentCaughtFish.visible=false;return;}
+                let progress=Math.min((performance.now()-reelStartTime)/reelDuration,1);
+                if(currentCaughtFish){currentCaughtFish.position.lerpVectors(startPos,targetPos,progress);currentCaughtFish.lookAt(camera.position);currentCaughtFish.rotation.y+=(0.1*(1-progress));}
+                if(progress<1)requestAnimationFrame(animateLand);else fishCaught();
+                updateUI();
+            }
+            animateLand();updateUI();
+        }
+        function getColorNameFromHex(hexString) {
+            const r=parseInt(hexString.substring(1,3),16),g=parseInt(hexString.substring(3,5),16),b=parseInt(hexString.substring(5,7),16);
+            if(r>200&&g>100&&b<100)return"Orangey";if(r>200&&g>200&&b<100)return"Yellowish";if(g>150&&r<100&&b<100)return"Greenish";
+            if(b>150&&r<100&&g<100)return"Blueish";if(r>150&&g<100&&b>150)return"Purplish";if(r>150&&g>150&&b>150)return"Silvery";
+            if(r<100&&g<100&&b<100)return"Dark";return"Colorful";
+        }
+        function fishCaught() {
+            if(gamePhase!=='reeling-landing'||!lastCaughtFishData)return;
+            if(fishLandSound&&!fishLandSound.isPlaying)fishLandSound.play();gamePhase='caught';score+=lastCaughtFishData.points;
+            fishCaughtCount++;
+            if (score > highScore) { highScore = score; }
+            if(fishInfoDivEl)fishInfoDivEl.innerHTML=`Caught ${lastCaughtFishData.colorName} ${lastCaughtFishData.name}! Sz:${lastCaughtFishData.size}cm Pts:${lastCaughtFishData.points}<br>Total Caught: ${fishCaughtCount}`;
+            updateUI();
+        }
+        function fishGotAway() {
+            console.log("[BiteDebug] fishGotAway() ENTERED. Phase:",gamePhase);
+            if(gamePhase!=='biting'){console.error("[BiteDebug] CRITICAL: fishGotAway called when phase NOT 'biting'. Phase:",gamePhase);return;}
+            gamePhase='waiting';if(fishInfoDivEl)fishInfoDivEl.textContent='Oh no, it spit the hook!';
+            if(bobber){bobber.visible=true;bobber.material.color.set(0xff0000);bobber.position.y=water.position.y+0.05;}
+            updateUI();console.log("[BiteDebug] Calling startWaitForBite from fishGotAway. Phase:",gamePhase);startWaitForBite();
+            if(activeFlies.length===0&&gamePhase==='waiting'){if(DEBUG_FLIES)console.log("[FlyDebug] fishGotAway: No flies, sched initial.");scheduleInitialFlyConsideration();}
+            else if(activeFlies.length>0&&activeFlies.length<MAX_ACTIVE_FLIES&&gamePhase==='waiting'){if(DEBUG_FLIES)console.log("[FlyDebug] fishGotAway: Flies active, sched additional.");scheduleAdditionalFlyConsideration();}
+        }
+        function updateHealthUI() {
+            const healthPercentage=(playerHealth/MAX_HEALTH)*100;
+            if(healthBarInnerEl){ healthBarInnerEl.style.width=`${healthPercentage}%`;
+                if(healthPercentage<30)healthBarInnerEl.style.backgroundColor='#E53935';
+                else if(healthPercentage<60)healthBarInnerEl.style.backgroundColor='#FFC107';
+                else healthBarInnerEl.style.backgroundColor='#4CAF50';
+            }
+        }
+        function takeDamage(amount) {
+            if(gamePhase==='gameover')return;playerHealth-=amount;playerHealth=Math.max(0,playerHealth);
+            if(amount>0){if(fishInfoDivEl)fishInfoDivEl.textContent=`Ouch! ${activeFlies.length>1?"Flies are":"A fly is"} biting! -${amount} HP.`;
+                if(damageSound&&!damageSound.isPlaying)damageSound.play();
+            }
+            updateHealthUI();if(playerHealth<=0){triggerGameOver();}
+        }
+        function triggerGameOver() {
+            gamePhase='gameover';clearAllFlyEvents(false);
+            clearTimeout(biteTimeout);clearTimeout(getAwayTimeout);clearTimeout(reelTimeoutId);
+            clearInterval(flyDamageIncreaseIntervalId);
+            if(bobber)bobber.visible=false;if(currentCaughtFish)scene.remove(currentCaughtFish);currentCaughtFish=null;
+
+            if(finalScoreMessageEl) finalScoreMessageEl.textContent=`Your final score: ${score} (${fishCaughtCount} fish)`;
+            if(gameOverScreenEl) gameOverScreenEl.style.display='flex';
+
+            const lowestLeaderboardScore = leaderboard.length < LEADERBOARD_MAX_ENTRIES ? 0 : leaderboard[leaderboard.length - 1].score;
+            const tiedLowestScore = leaderboard.length > 0 && leaderboard.length === LEADERBOARD_MAX_ENTRIES && score === lowestLeaderboardScore;
+            const higherThanLowestFishCount = leaderboard.length > 0 && leaderboard.length === LEADERBOARD_MAX_ENTRIES && score === lowestLeaderboardScore && fishCaughtCount > leaderboard[leaderboard.length-1].fish;
+
+            if (score > 0 && (leaderboard.length < LEADERBOARD_MAX_ENTRIES || score > lowestLeaderboardScore || (tiedLowestScore && higherThanLowestFishCount) )) {
+                promptForPlayerName();
+            } else {
+                if(nameEntryContainerEl) nameEntryContainerEl.style.display = 'none';
+                if(restartButtonEl) restartButtonEl.style.display = 'block';
+                if(shareButtonEl) shareButtonEl.style.display = 'block';
+                displayLeaderboard(leaderboardListGameOverEl);
+            }
+            updateUI();
+        }
+        function restartGame() {if(gameOverScreenEl)gameOverScreenEl.style.display='none';resetGameVariables();updateUI();}
+
+        function createSingleFlyInstance() {
+            const bodySize=0.03*FLY_SCALE_MULTIPLIER;const wingWidth=0.05*FLY_SCALE_MULTIPLIER;const wingHeight=0.02*FLY_SCALE_MULTIPLIER;
+            const flyBodyGeom=new THREE.SphereGeometry(bodySize,8,6); const flyMaterial=new THREE.MeshStandardMaterial({color:0x111111,roughness:0.8});
+            const flyBody=new THREE.Mesh(flyBodyGeom,flyMaterial);
+            const wingGeom=new THREE.PlaneGeometry(wingWidth,wingHeight); const wingMaterial=new THREE.MeshStandardMaterial({color:0x999999,transparent:true,opacity:0.6,side:THREE.DoubleSide});
+            const leftWing=new THREE.Mesh(wingGeom,wingMaterial);leftWing.position.set(-bodySize*0.8,bodySize*0.3,0);leftWing.rotation.z=Math.PI/5;
+            const rightWing=new THREE.Mesh(wingGeom,wingMaterial);rightWing.position.set(bodySize*0.8,bodySize*0.3,0);rightWing.rotation.z=-Math.PI/5;
+            const flyInstance=new THREE.Group();flyInstance.add(flyBody);flyInstance.add(leftWing);flyInstance.add(rightWing);
+            flyInstance.visible=false;flyInstance.traverse(child=>{if(child.isMesh)child.castShadow=true;});
+            scene.add(flyInstance);return flyInstance;
+        }
+        function scheduleInitialFlyConsideration() {
+            if(DEBUG_FLIES)console.log(`[FlyDebug] schedInitialFly. Phase=${gamePhase}, Flies=${activeFlies.length}`);
+            if(gamePhase!=='waiting'||activeFlies.length>0||gamePhase==='gameover'){if(DEBUG_FLIES)console.log(`[FlyDebug] schedInitialFly: Conditions NOT MET.`);return;}
+            clearTimeout(considerInitialFlyTimeoutId);
+            const delay=(Math.random()*1500+500)/(DEBUG_FLIES?2:1);
+            if(DEBUG_FLIES)console.log(`[FlyDebug] schedInitialFly: Timeout ${delay.toFixed(0)}ms`);
+            considerInitialFlyTimeoutId=setTimeout(()=>{
+                if(DEBUG_FLIES)console.log(`[FlyDebug] schedInitialFly: TIMEOUT FIRED. Phase=${gamePhase}, Flies=${activeFlies.length}`);
+                if(gamePhase==='waiting'&&activeFlies.length===0){
+                    const roll=Math.random();if(DEBUG_FLIES)console.log(`[FlyDebug] schedInitialFly: Rolled ${roll.toFixed(2)} vs ${initialFlySpawnChance}`);
+                    if(roll<initialFlySpawnChance){if(DEBUG_FLIES)console.log("[FlyDebug] schedInitialFly: Spawning!");spawnNewFly();}
+                    else{if(DEBUG_FLIES)console.log("[FlyDebug] schedInitialFly: Missed, rescheduling.");scheduleInitialFlyConsideration();}
+                }else{if(DEBUG_FLIES)console.log(`[FlyDebug] schedInitialFly: Conditions in timeout NOT MET.`);}
+            },delay);
+        }
+        function scheduleAdditionalFlyConsideration() {
+            if(DEBUG_FLIES)console.log(`[FlyDebug] schedAdditionalFly. Phase=${gamePhase}, Flies=${activeFlies.length}`);
+            if(gamePhase!=='waiting'||activeFlies.length===0||activeFlies.length>=MAX_ACTIVE_FLIES||gamePhase==='gameover'){if(DEBUG_FLIES)console.log(`[FlyDebug] schedAdditionalFly: Conditions NOT MET.`);return;}
+            clearTimeout(considerAdditionalFlyTimeoutId);
+            const delay=(ADD_FLY_DELAY_MS+Math.random()*1000)/(DEBUG_FLIES?2:1);
+            if(DEBUG_FLIES)console.log(`[FlyDebug] schedAdditionalFly: Timeout ${delay.toFixed(0)}ms`);
+            considerAdditionalFlyTimeoutId=setTimeout(()=>{
+                if(DEBUG_FLIES)console.log(`[FlyDebug] schedAdditionalFly: TIMEOUT FIRED. Phase=${gamePhase}, Flies=${activeFlies.length}`);
+                if(gamePhase==='waiting'&&activeFlies.length>0&&activeFlies.length<MAX_ACTIVE_FLIES){
+                    const roll=Math.random();if(DEBUG_FLIES)console.log(`[FlyDebug] schedAdditionalFly: Rolled ${roll.toFixed(2)} vs ${subsequentFlySpawnChance}`);
+                    if(roll<subsequentFlySpawnChance){if(DEBUG_FLIES)console.log("[FlyDebug] schedAdditionalFly: Spawning!");spawnNewFly();}
+                    else{if(DEBUG_FLIES)console.log("[FlyDebug] schedAdditionalFly: Missed, rescheduling.");scheduleAdditionalFlyConsideration();}
+                }else{if(DEBUG_FLIES)console.log(`[FlyDebug] schedAdditionalFly: Conditions in timeout NOT MET.`);}
+            },delay);
+        }
+        function spawnNewFly() {
+            if(DEBUG_FLIES)console.log(`[FlyDebug] spawnNewFly. Active=${activeFlies.length}, Max=${MAX_ACTIVE_FLIES}, Phase=${gamePhase}`);
+            if(activeFlies.length>=MAX_ACTIVE_FLIES||gamePhase!=='waiting'||gamePhase==='gameover'){if(DEBUG_FLIES)console.log("[FlyDebug] spawnNewFly: Conditions not met.");return;}
+            const newFlyMesh=createSingleFlyInstance();newFlyMesh.visible=true;
+            if(flySpawnSound&&!flySpawnSound.isPlaying)flySpawnSound.play();
+            const spawnCenter=new THREE.Vector3();camera.getWorldPosition(spawnCenter);
+            const radius=1.0+Math.random()*0.75;const phi=Math.random()*Math.PI*2;
+            const theta=(Math.PI/2)-(Math.random()*Math.PI/2.5)+(Math.PI/5);
+            newFlyMesh.position.x=spawnCenter.x+radius*Math.sin(theta)*Math.cos(phi);
+            newFlyMesh.position.y=spawnCenter.y+radius*Math.cos(theta);
+            newFlyMesh.position.z=spawnCenter.z+radius*Math.sin(theta)*Math.sin(phi);
+            newFlyMesh.position.y=THREE.MathUtils.clamp(newFlyMesh.position.y,camera.position.y-0.75,camera.position.y+1.0);
+            newFlyMesh.position.y=Math.max(water.position.y+0.2,newFlyMesh.position.y);
+            if(DEBUG_FLIES)console.log("[FlyDebug] spawnNewFly: Pos:",newFlyMesh.position.toArray().map(p=>p.toFixed(2)));
+            const flyId=THREE.MathUtils.generateUUID();
+            const despawnTimeoutId=setTimeout(()=>removeFlyById(flyId,false),FLY_LIFESPAN_MS);
+            activeFlies.push({id:flyId,mesh:newFlyMesh,targetPos:new THREE.Vector3().copy(newFlyMesh.position),spawnTime:Date.now(),despawnTimeoutId:despawnTimeoutId});
+            if(DEBUG_FLIES)console.log(`[FlyDebug] spawnNewFly: Pushed. ID: ${flyId}. Total: ${activeFlies.length}`);
+            if(activeFlies.length===1){
+                if(fishInfoDivEl)fishInfoDivEl.textContent="A pesky fly appeared!";
+                if(!flyDamageIntervalId){ if(DEBUG_FLIES)console.log("[FlyDebug] spawnNewFly: Starting damage interval.");
+                    flyDamageIntervalId=setInterval(()=>{
+                        if(activeFlies.length>0&&gamePhase!=='gameover'){
+                            const actualDamagePerFly=FLY_DAMAGE_PER_FLY_BASE*flyDamageMultiplier;
+                            const totalDamage=Math.ceil(actualDamagePerFly*activeFlies.length);
+                            if(DEBUG_FLIES)console.log(`[FlyDebug] Damage: Base=${FLY_DAMAGE_PER_FLY_BASE}, Multi=${flyDamageMultiplier.toFixed(2)}, Actual=${actualDamagePerFly.toFixed(2)}, Total=${totalDamage}. Active=${activeFlies.length}`);
+                            takeDamage(totalDamage);
+                        }
+                    },FLY_DAMAGE_TICK_MS);
+                }
+            }else{if(fishInfoDivEl)fishInfoDivEl.textContent=`More flies! (${activeFlies.length})`;}
+            updateUI();
+            if(DEBUG_FLIES)console.log("[FlyDebug] spawnNewFly: Calling schedAdditionalFly.");
+            scheduleAdditionalFlyConsideration();
+        }
+        function animateActiveFlies() {
+            if(activeFlies.length===0)return;
+            activeFlies.forEach(flyData=>{
+                const flyMesh=flyData.mesh;if(!flyMesh.visible)return;
+                if(Math.random()<0.035){const targetPlayerPos=new THREE.Vector3();camera.getWorldPosition(targetPlayerPos);flyData.targetPos.copy(targetPlayerPos).add(new THREE.Vector3((Math.random()-0.5)*0.5,(Math.random()-0.5)*0.3,(Math.random()-0.5)*0.5));}
+                flyMesh.position.lerp(flyData.targetPos,0.04);
+                flyMesh.position.x+=(Math.random()-0.5)*0.03;flyMesh.position.y+=(Math.random()-0.5)*0.03;flyMesh.position.z+=(Math.random()-0.5)*0.03;
+                const baseWingAngle=Math.PI/5;const flapAmount=Math.PI/6*Math.sin(performance.now()*0.07);
+                flyMesh.children[1].rotation.z=baseWingAngle+flapAmount;flyMesh.children[2].rotation.z=-baseWingAngle-flapAmount;
+                flyMesh.lookAt(camera.position);
+            });
+        }
+        function handleSwatFly() {
+            if(activeFlies.length===0||gamePhase==='gameover')return;
+            if(swatSound&&!swatSound.isPlaying)swatSound.play();
+            const swattedFly=activeFlies.shift();
+            if(swattedFly){if(DEBUG_FLIES)console.log(`[FlyDebug] Swatted fly ID ${swattedFly.id}. Remaining: ${activeFlies.length}`);if(fishInfoDivEl)fishInfoDivEl.textContent=`Swatted! ${activeFlies.length} left.`;scene.remove(swattedFly.mesh);clearTimeout(swattedFly.despawnTimeoutId);}
+            if(activeFlies.length===0){
+                if(DEBUG_FLIES)console.log("[FlyDebug] All flies swatted. Calling clearAllFlyEvents.");
+                if(fishInfoDivEl)fishInfoDivEl.textContent="All flies gone!";
+                clearAllFlyEvents(true);
+                clearTimeout(considerAdditionalFlyTimeoutId);
+                setTimeout(()=>{
+                    if(gamePhase==='waiting'){if(DEBUG_FLIES)console.log("[FlyDebug] Swat respite over, schedInitialFly.");scheduleInitialFlyConsideration();}
+                    else{if(DEBUG_FLIES)console.log(`[FlyDebug] Swat respite over, phase '${gamePhase}', not rescheduling.`);}
+                },4000);
+            }else{if(DEBUG_FLIES)console.log("[FlyDebug] Flies remain. Calling schedAdditionalFly.");scheduleAdditionalFlyConsideration();}
+            updateUI();
+        }
+        function removeFlyById(flyId,wasSwatted) {
+            const index=activeFlies.findIndex(f=>f.id===flyId);
+            if(index>-1){const removedFly=activeFlies.splice(index,1)[0];if(DEBUG_FLIES)console.log(`[FlyDebug] Removed fly ID ${removedFly.id}. Swatted: ${wasSwatted}. Left: ${activeFlies.length}`);scene.remove(removedFly.mesh);clearTimeout(removedFly.despawnTimeoutId);if(!wasSwatted&&fishInfoDivEl)fishInfoDivEl.textContent=`A fly left. ${activeFlies.length} left.`;}
+            else{if(DEBUG_FLIES)console.warn(`[FlyDebug] Could not find fly ID ${flyId} to remove.`);}
+            if(activeFlies.length===0){
+                if(DEBUG_FLIES)console.log("[FlyDebug] Last fly removed. Calling clearAllFlyEvents.");
+                if(!wasSwatted&&fishInfoDivEl)fishInfoDivEl.textContent="Last fly left.";
+                clearAllFlyEvents(false);
+                clearTimeout(considerAdditionalFlyTimeoutId);
+                if(!wasSwatted && gamePhase==='waiting'){
+                    if(DEBUG_FLIES)console.log("[FlyDebug] Last fly despawned, phase 'waiting', schedInitialFly.");
+                    scheduleInitialFlyConsideration();
+                }
+            }
+            updateUI();
+        }
+        function clearAllFlyEvents(triggeredByPlayerAction) {
+            const count=activeFlies.length;if(DEBUG_FLIES)console.log(`[FlyDebug] clearAllFlyEvents. PlayerAction: ${triggeredByPlayerAction}. Flies before: ${count}. Phase: ${gamePhase}`);
+            activeFlies.forEach(flyData=>{scene.remove(flyData.mesh);clearTimeout(flyData.despawnTimeoutId);});
+            activeFlies=[];
+            if (flyDamageIntervalId) { clearInterval(flyDamageIntervalId); flyDamageIntervalId = null; if(DEBUG_FLIES) console.log("[FlyDebug] Damage interval CLEARED in clearAllFlyEvents."); }
+            if (damageSound && damageSound.isPlaying) { damageSound.stop(); if(DEBUG_FLIES) console.log("[FlyDebug] damageSound.stop() called in clearAllFlyEvents."); }
+            if (flySpawnSound && flySpawnSound.isPlaying) { flySpawnSound.stop(); if(DEBUG_FLIES) console.log("[FlyDebug] flySpawnSound.stop() called in clearAllFlyEvents."); }
+            clearTimeout(considerInitialFlyTimeoutId);clearTimeout(considerAdditionalFlyTimeoutId);
+            if(triggeredByPlayerAction&&count>0&&(gamePhase==='reeling-empty'||gamePhase==='biting'||gamePhase==='reeling-struggle'||gamePhase==='reeling-landing')){if(DEBUG_FLIES)console.log("[FlyDebug] clearAllFlyEvents: Flies potentially scattered by player.");}
+        }
+
+        function loadLeaderboard() {
+            const storedLeaderboard = localStorage.getItem('fishingHeckLeaderboard');
+            if (storedLeaderboard) {
+                leaderboard = JSON.parse(storedLeaderboard);
+                leaderboard.sort((a, b) => {
+                    if (b.score === a.score) return b.fish - a.fish;
+                    return b.score - a.score;
+                });
+            } else { leaderboard = []; }
+            highScore = leaderboard.length > 0 ? leaderboard[0].score : 0;
+            console.log("[Leaderboard] Loaded:", leaderboard);
+        }
+        function saveLeaderboard() { localStorage.setItem('fishingHeckLeaderboard', JSON.stringify(leaderboard)); console.log("[Leaderboard] Saved:", leaderboard); }
+        function escapeHtml(unsafe) {
+            if (typeof unsafe !== 'string') return '';
+            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+        function displayLeaderboard(listElement = leaderboardListGameOverEl) {
+            if (!listElement) { console.error("Leaderboard list element not provided or found for display."); return; }
+            const containerEl = (listElement === leaderboardListPopupEl) ? leaderboardPopupEl : leaderboardContainerEl;
+            if (containerEl) containerEl.style.display = 'block';
+
+            listElement.innerHTML = '';
+            if (leaderboard.length === 0) { listElement.innerHTML = '<li>No high scores yet!</li>'; return; }
+            leaderboard.forEach((entry, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="rank">${index + 1}.</span> <span class="name">${escapeHtml(entry.name)}</span> <span class="score">${entry.score}</span> <span class="fish">(${entry.fish} fish)</span>`;
+                listElement.appendChild(li);
+            });
+        }
+        function addScoreToLeaderboard(playerName, playerScore, playerFishCaught) {
+            leaderboard.push({ name: playerName, score: playerScore, fish: playerFishCaught });
+            leaderboard.sort((a, b) => {
+                if (b.score === a.score) return b.fish - a.fish;
+                return b.score - a.score;
+            });
+            leaderboard = leaderboard.slice(0, LEADERBOARD_MAX_ENTRIES);
+            saveLeaderboard();
+            if (leaderboard.length > 0 && leaderboard[0].score > highScore) highScore = leaderboard[0].score;
+            console.log("[Leaderboard] Score added. New leaderboard:", leaderboard);
+            // highScoreDisplayEl was removed from main UI, so this line is fine as is (guarded)
+            // if (highScoreDisplayEl) highScoreDisplayEl.textContent = `High Score: ${highScore}`;
+        }
+        function promptForPlayerName() {
+            if (!nameEntryContainerEl || !restartButtonEl || !shareButtonEl || !leaderboardContainerEl) return;
+            console.log("[Leaderboard] Prompting for player name.");
+            restartButtonEl.style.display = 'none'; shareButtonEl.style.display = 'none';
+            leaderboardContainerEl.style.display = 'none';
+            nameEntryContainerEl.style.display = 'block';
+            if (playerNameInputEl) { playerNameInputEl.value = ''; playerNameInputEl.focus(); }
+        }
+        function handleSubmitScore() {
+            if (!playerNameInputEl || !nameEntryContainerEl || !restartButtonEl || !shareButtonEl || !leaderboardContainerEl) return;
+            console.log("[Leaderboard] Submitting score.");
+            let playerName = playerNameInputEl.value.trim();
+            if (!playerName || playerName.length < 1) playerName = "Angler";
+            if (playerName.length > 10) playerName = playerName.substring(0, 10);
+            addScoreToLeaderboard(playerName, score, fishCaughtCount);
+            nameEntryContainerEl.style.display = 'none';
+            restartButtonEl.style.display = 'block'; shareButtonEl.style.display = 'block';
+            displayLeaderboard(leaderboardListGameOverEl);
+        }
+        function toggleLeaderboardPopup() {
+            if (uiClickSound && !uiClickSound.isPlaying) uiClickSound.play();
+            if (leaderboardPopupEl) {
+                if (leaderboardPopupEl.style.display === 'none' || leaderboardPopupEl.style.display === '') {
+                    displayLeaderboard(leaderboardListPopupEl);
+                    leaderboardPopupEl.style.display = 'block';
+                } else {
+                    leaderboardPopupEl.style.display = 'none';
+                }
+            }
+        }
+
+        function updateUI() {
+            if (!scoreBoardDivEl) { return; }
+
+            console.log(`[UI_DEBUG] updateUI. Phase: ${gamePhase}. CastBtn Disabled: ${castButtonEl ? castButtonEl.disabled : 'N/A'}`);
+            scoreBoardDivEl.textContent = `Score: ${score}`;
+            if(fishCaughtDisplayEl) fishCaughtDisplayEl.textContent = `Fish Caught: ${fishCaughtCount}`;
+            updateHealthUI();
+
+            const canRotate = (gamePhase === 'idle' || gamePhase === 'caught');
+            if (rotationControlsDivEl) rotationControlsDivEl.style.display = canRotate ? 'flex' : 'none';
+            if (rotateLeftButtonEl) rotateLeftButtonEl.disabled = !canRotate;
+            if (rotateRightButtonEl) rotateRightButtonEl.disabled = !canRotate;
+
+            if (gamePhase === 'gameover') {
+                if (castButtonEl) castButtonEl.style.display = 'none';
+                if (swatCircleButtonEl) swatCircleButtonEl.style.display = 'none';
+                if (rotationControlsDivEl) rotationControlsDivEl.style.display = 'none';
+            } else {
+                if (shareButtonEl) shareButtonEl.style.display = 'none';
+                if (nameEntryContainerEl) nameEntryContainerEl.style.display = 'none';
+            }
+
+            if (castButtonEl && gamePhase !== 'gameover') {
+                castButtonEl.style.display = 'block';
+                const isReelingOrWaitingOrBiting = (gamePhase === 'waiting' || gamePhase === 'biting' || gamePhase === 'reeling-struggle');
+                if (isReelingOrWaitingOrBiting) {
+                    if (gamePhase === 'reeling-struggle') { castButtonEl.textContent = `Reel! [${clicksMade}/${clicksRequired}]`; castButtonEl.disabled = false; }
+                    else { castButtonEl.textContent = 'Reel In'; castButtonEl.disabled = false; }
+                    castButtonEl.style.backgroundColor = '#4CAF50';
+                } else if (gamePhase === 'reeling-landing' || gamePhase === 'reeling-empty' || gamePhase === 'casting') {
+                    let phaseText = gamePhase.charAt(0).toUpperCase() + gamePhase.slice(1).replace("-"," ");
+                    if (gamePhase === 'reeling-empty') phaseText = "Reeling In"; else if (gamePhase === 'reeling-landing') phaseText = "Landing Fish";
+                    castButtonEl.textContent = phaseText + '...'; castButtonEl.style.backgroundColor = '#aaa'; castButtonEl.disabled = true;
+                } else { castButtonEl.textContent = 'Cast Line'; castButtonEl.style.backgroundColor = '#4CAF50'; castButtonEl.disabled = false; }
+            }
+            if (swatCircleButtonEl) {
+                swatCircleButtonEl.style.display = activeFlies.length > 0 && gamePhase !== 'gameover' && gamePhase !== 'casting' && gamePhase !== 'reeling-landing' && gamePhase !== 'reeling-empty' ? 'block' : 'none';
+                swatCircleButtonEl.disabled = !(activeFlies.length > 0);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (water) water.material.uniforms.time.value += 1.0 / 60.0;
+            if (gamePhase === 'waiting') animateBobberWaiting();
+            if (activeFlies.length > 0) animateActiveFlies();
+            if (gamePhase === 'caught' && currentCaughtFish && currentCaughtFish.visible) {
+                currentCaughtFish.lookAt(camera.position);
+                const forwardVec = new THREE.Vector3(); camera.getWorldDirection(forwardVec);
+                const targetPos = new THREE.Vector3().copy(camera.position).add(forwardVec.multiplyScalar(1.2)).add(new THREE.Vector3(0, -0.3 + Math.sin(performance.now() * 0.002) * 0.05, 0));
+                currentCaughtFish.position.lerp(targetPos, 0.1);
+            }
+            if (renderer && scene && camera) { renderer.render(scene, camera); }
+        }
+
+        init();
+    </script>
+</body>
+</html>
